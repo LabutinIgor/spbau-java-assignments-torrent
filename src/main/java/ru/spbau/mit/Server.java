@@ -17,8 +17,8 @@ public class Server {
 
     private int newFileId = 0;
     private ServerSocket serverSocket;
-    Map<Integer, FileInfo> filesById;
-    Map<Integer, List<Integer>> clientFiles;
+    private Map<Integer, FileInfo> filesById;
+    private Map<Integer, List<Integer>> clientFiles;
 
     public Server() {
         filesById = new HashMap<>();

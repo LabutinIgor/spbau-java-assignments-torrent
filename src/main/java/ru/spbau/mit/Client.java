@@ -16,6 +16,7 @@ public class Client {
     private static final byte UPDATE = 4;
     private static final byte STAT = 1;
     private static final byte GET = 2;
+    private static final int MIN_ARGS_CNT = 2;
     private static final int ARGS_LENGTH_LIST = 2;
     private static final int ARGS_LENGTH_GET = 3;
     private static final int ARGS_LENGTH_NEWFILE = 3;
@@ -25,12 +26,11 @@ public class Client {
     private static final int ARG_ID = 2;
     private static final int ARG_PATH = 2;
     private static final int ARG_HOST = 1;
-    private static final int MIN_ARGS_CNT = 2;
     private static final String CONFIG_FILE = "config.txt";
 
-    private static String host;
-    private static int port;
-    private static Map<Integer, FileInfo> filesById;
+    private String host;
+    private int port;
+    private Map<Integer, FileInfo> filesById;
 
     public static void main(String[] args) throws IOException {
         new Client().start(args);
@@ -52,8 +52,8 @@ public class Client {
                 }
                 Map<Integer, FileInfo> filesFromServer = list();
                 for (FileInfo file : filesFromServer.values()) {
-                    System.out.println("id: " + file.getId() + " name: " + file.getName() + " size: " +
-                            file.getSize());
+                    System.out.println("id: " + file.getId() + " name: " + file.getName() + " size: "
+                            + file.getSize());
                 }
                 break;
             case "get":
