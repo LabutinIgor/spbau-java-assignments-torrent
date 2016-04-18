@@ -21,20 +21,28 @@ public class Client {
     private static final int ARGS_LENGTH_NEWFILE = 3;
     private static final int ARGS_LENGTH_RUN = 2;
     private static final int PART_SIZE = 4096;
+    private static final int IP_LENGTH = 4;
+    private static final int ARG_ID = 2;
+    private static final int ARG_PATH = 2;
+    private static final int ARG_HOST = 1;
+    private static final int MIN_ARGS_CNT = 2;
     private static final String CONFIG_FILE = "config.txt";
 
     private static String host;
     private static int port;
     private static Map<Integer, FileInfo> filesById;
 
+    private Client() {
+    }
+
     public static void main(String[] args) throws IOException {
         loadState();
 
-        if (args.length < 2) {
+        if (args.length < MIN_ARGS_CNT) {
             printUsage();
             return;
         }
-        host = args[1];
+        host = args[ARG_HOST];
         switch (args[0]) {
             case "list":
                 if (args.length != ARGS_LENGTH_LIST) {
@@ -51,14 +59,14 @@ public class Client {
                     printUsage();
                     return;
                 }
-                get(args[2]);
+                get(args[ARG_ID]);
                 break;
             case "newfile":
                 if (args.length != ARGS_LENGTH_NEWFILE) {
                     printUsage();
                     return;
                 }
-                newfile(args[2]);
+                newfile(args[ARG_PATH]);
                 break;
             case "run":
                 if (args.length != ARGS_LENGTH_RUN) {
@@ -77,7 +85,7 @@ public class Client {
     private static void loadState() throws IOException {
         File config = new File(CONFIG_FILE);
         if (config.exists()) {
-            DataInputStream in = new DataInputStream(new FileInputStream(config));
+            final DataInputStream in = new DataInputStream(new FileInputStream(config));
 
             int cnt = in.readInt();
             for (int i = 0; i < cnt; i++) {
@@ -110,7 +118,7 @@ public class Client {
     }
 
     private static void saveState() throws IOException {
-        DataOutputStream out = new DataOutputStream(new FileOutputStream(CONFIG_FILE));
+        final DataOutputStream out = new DataOutputStream(new FileOutputStream(CONFIG_FILE));
 
         out.writeInt(filesById.size());
         for (FileInfo file : filesById.values()) {
@@ -136,11 +144,10 @@ public class Client {
     }
 
     private static Map<Integer, FileInfo> list() throws IOException {
-
         Socket socket = new Socket(host, PORT);
         socket.getOutputStream().write(LIST);
 
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
         Map<Integer, FileInfo> files = new HashMap<>();
         int cnt = inputStream.readInt();
@@ -165,7 +172,7 @@ public class Client {
 
     private static void newfile(String path) throws IOException {
         Socket socket = new Socket(host, PORT);
-        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
         FileInfo file = new FileInfo();
         file.file = new RandomAccessFile(path, "r");
@@ -174,11 +181,11 @@ public class Client {
         file.startedDownloading = true;
         file.cntDownloadedParts = file.getPartsCnt();
 
+        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
         outputStream.writeByte(UPLOAD);
         outputStream.writeUTF(file.name);
         outputStream.writeLong(file.size);
 
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         file.id = inputStream.readInt();
         filesById.put(file.id, file);
 
@@ -188,8 +195,8 @@ public class Client {
     private static void run() throws IOException {
         Map<Integer, FileInfo> filesFromServer = list();
 
-        filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.id) &&
-                !file.startedDownloading).forEach(file -> {
+        filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.id)
+                && !file.startedDownloading).forEach(file -> {
             FileInfo fileFromServer = filesFromServer.get(file.id);
             file.startedDownloading = true;
             file.name = fileFromServer.name;
@@ -271,8 +278,8 @@ public class Client {
 
     private static boolean sendUpdate() throws IOException {
         Socket socket = new Socket(host, PORT);
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
         outputStream.writeByte(UPDATE);
         outputStream.writeShort(port);
@@ -289,8 +296,8 @@ public class Client {
 
     private static List<ClientInfo> sendSources(int id) throws IOException {
         Socket socket = new Socket(host, PORT);
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
         outputStream.writeByte(SOURCES);
         outputStream.writeInt(id);
@@ -299,8 +306,8 @@ public class Client {
         int cnt = inputStream.readInt();
         for (int i = 0; i < cnt; i++) {
             ClientInfo client = new ClientInfo();
-            client.ip = new byte[4];
-            if (inputStream.read(client.ip) != 4) {
+            client.ip = new byte[IP_LENGTH];
+            if (inputStream.read(client.ip) != IP_LENGTH) {
                 throw new IOException("Error in sources");
             }
             client.port = inputStream.readByte();
@@ -314,8 +321,8 @@ public class Client {
 
     private static List<Integer> sendStat(byte[] clientIp, int clientPort, int id) throws IOException {
         Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
         outputStream.writeByte(STAT);
         outputStream.writeInt(id);
@@ -332,8 +339,8 @@ public class Client {
 
     private static byte[] sendGet(byte[] clientIp, int clientPort, int id, int part) throws IOException {
         Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
-        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
         outputStream.writeByte(GET);
         outputStream.writeInt(id);

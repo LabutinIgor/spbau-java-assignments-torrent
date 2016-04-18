@@ -125,7 +125,8 @@ public class Server {
         }
     }
 
-    private void doUpdate(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip) throws IOException {
+    private void doUpdate(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip)
+            throws IOException {
         short port = inputStream.readByte();
         ClientInfo currentClient = new ClientInfo();
         currentClient.ip = ip;
