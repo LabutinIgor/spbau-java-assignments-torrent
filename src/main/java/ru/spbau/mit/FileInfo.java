@@ -12,6 +12,7 @@ public class FileInfo {
     public Set<ClientInfo> clients;
     RandomAccessFile file;
     public boolean startedDownloading;
+    public int cntDownloadedParts;
     public boolean[] isDownloadedPart;
 
     public int getPartsCnt() {

@@ -117,9 +117,11 @@ public class Server {
         int id = inputStream.readInt();
         updateClientsOfFile(id);
 
+        outputStream.writeInt(filesById.get(id).clients.size());
+
         for (ClientInfo clientInfo : filesById.get(id).clients) {
             outputStream.write(clientInfo.ip);
-            outputStream.write(clientInfo.port);
+            outputStream.writeShort(clientInfo.port);
         }
     }
 

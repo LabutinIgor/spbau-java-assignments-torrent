@@ -1,12 +1,15 @@
 package ru.spbau.mit;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
 public class Client {
     private static final int PORT = 8081;
     private static final long UPDATE_TIME = 60000;
+    private static final long SAVING_STATE_PERIOD = 60000;
     private static final byte LIST = 1;
     private static final byte UPLOAD = 2;
     private static final byte SOURCES = 3;
@@ -26,21 +29,43 @@ public class Client {
 
     public static void main(String[] args) throws IOException {
         loadState();
-        Scanner in = new Scanner(System.in);
 
-        String[] request = in.nextLine().split(" ");
-        switch (request[0]) {
+        if (args.length < 2) {
+            printUsage();
+            return;
+        }
+        host = args[1];
+        switch (args[0]) {
             case "list":
-                list(request);
+                if (args.length != ARGS_LENGTH_LIST) {
+                    printUsage();
+                    return;
+                }
+                Map<Integer, FileInfo> filesFromServer = list();
+                for (FileInfo file : filesFromServer.values()) {
+                    System.out.println("id: " + file.id + " name: " + file.name + " size: " + file.size);
+                }
                 break;
             case "get":
-                get(request);
+                if (args.length != ARGS_LENGTH_GET) {
+                    printUsage();
+                    return;
+                }
+                get(args[2]);
                 break;
             case "newfile":
-                newfile(request);
+                if (args.length != ARGS_LENGTH_NEWFILE) {
+                    printUsage();
+                    return;
+                }
+                newfile(args[2]);
                 break;
             case "run":
-                run(request);
+                if (args.length != ARGS_LENGTH_RUN) {
+                    printUsage();
+                    return;
+                }
+                run();
                 break;
             default:
                 printUsage();
@@ -110,87 +135,141 @@ public class Client {
         System.out.println("run <tracker-address>");
     }
 
-    private static void list(String[] args) {
-        if (args.length != ARGS_LENGTH_LIST) {
-            System.out.println("Wrong arguments");
-            printUsage();
-            return;
-        }
-        try {
-            Socket socket = new Socket(args[1], PORT);
-            socket.getOutputStream().write(LIST);
+    private static Map<Integer, FileInfo> list() throws IOException {
 
-            DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-            int cnt = inputStream.readInt();
+        Socket socket = new Socket(host, PORT);
+        socket.getOutputStream().write(LIST);
 
-            for (int i = 0; i < cnt; i++) {
-                FileInfo file = new FileInfo();
-                file.id = inputStream.readInt();
-                file.name = inputStream.readUTF();
-                file.size = inputStream.readLong();
-                System.out.println("id: " + file.id + " name: " + file.name + " size: " + file.size);
-            }
-        } catch (IOException e) {
-            System.out.println("Error");
-        }
-    }
+        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
-    private static void get(String[] args) {
-        if (args.length != ARGS_LENGTH_GET) {
-            System.out.println("Wrong arguments");
-            printUsage();
-            return;
-        }
-        int id = Integer.parseInt(args[2]);
-        FileInfo file = new FileInfo();
-        file.id = id;
-        file.startedDownloading = false;
-        filesById.put(id, file);
-    }
+        Map<Integer, FileInfo> files = new HashMap<>();
+        int cnt = inputStream.readInt();
 
-    private static void newfile(String[] args) {
-        if (args.length != ARGS_LENGTH_NEWFILE) {
-            System.out.println("Wrong arguments");
-            printUsage();
-            return;
-        }
-        try {
-            Socket socket = new Socket(args[1], PORT);
-
-            DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-
+        for (int i = 0; i < cnt; i++) {
             FileInfo file = new FileInfo();
-            file.file = new RandomAccessFile(args[2], "r");
-            file.name = args[2];
-            file.size = file.file.length();
-
-            outputStream.writeByte(UPLOAD);
-            outputStream.writeUTF(file.name);
-            outputStream.writeLong(file.size);
-
-            DataInputStream inputStream = new DataInputStream(socket.getInputStream());
             file.id = inputStream.readInt();
-            filesById.put(file.id, file);
+            file.name = inputStream.readUTF();
+            file.size = inputStream.readLong();
 
-            socket.close();
-        } catch (IOException e) {
-            System.out.println("Error");
+            files.put(file.id, file);
+        }
+        return files;
+    }
+
+    private static void get(String id) {
+        FileInfo file = new FileInfo();
+        file.id = Integer.parseInt(id);
+        file.startedDownloading = false;
+        filesById.put(file.id, file);
+    }
+
+    private static void newfile(String path) throws IOException {
+        Socket socket = new Socket(host, PORT);
+        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+
+        FileInfo file = new FileInfo();
+        file.file = new RandomAccessFile(path, "r");
+        file.name = path;
+        file.size = file.file.length();
+        file.startedDownloading = true;
+        file.cntDownloadedParts = file.getPartsCnt();
+
+        outputStream.writeByte(UPLOAD);
+        outputStream.writeUTF(file.name);
+        outputStream.writeLong(file.size);
+
+        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        file.id = inputStream.readInt();
+        filesById.put(file.id, file);
+
+        socket.close();
+    }
+
+    private static void run() throws IOException {
+        Map<Integer, FileInfo> filesFromServer = list();
+
+        filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.id) &&
+                !file.startedDownloading).forEach(file -> {
+            FileInfo fileFromServer = filesFromServer.get(file.id);
+            file.startedDownloading = true;
+            file.name = fileFromServer.name;
+            file.size = fileFromServer.size;
+            try {
+                file.file = new RandomAccessFile(file.name, "rw");
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            file.isDownloadedPart = new boolean[file.getPartsCnt()];
+        });
+
+        //Thread to update
+        new Thread(() -> {
+            while (true) {
+                try {
+                    sendUpdate();
+                    Thread.sleep(UPDATE_TIME);
+                } catch (InterruptedException | IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        //Thread to download
+        new Thread(() -> {
+            while (true) {
+                try {
+                    for (FileInfo file : filesById.values()) {
+                        if (file.startedDownloading && file.cntDownloadedParts != file.getPartsCnt()) {
+                            List<ClientInfo> clients = sendSources(file.id);
+                            for (ClientInfo client : clients) {
+                                List<Integer> parts = sendStat(client.ip, client.port, file.id);
+                                for (Integer part : parts) {
+                                    if (!file.isDownloadedPart[part]) {
+                                        file.isDownloadedPart[part] = true;
+                                        file.cntDownloadedParts++;
+                                        byte[] buffer = sendGet(client.ip, client.port, file.id, part);
+                                        file.file.seek(part * (long) PART_SIZE);
+                                        file.file.write(buffer);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        //Thread to seed
+        new Thread(() -> {
+            try {
+                ServerSocket serverSocket = new ServerSocket(0);
+                port = serverSocket.getLocalPort();
+                while (true) {
+                    Socket socket = serverSocket.accept();
+                    if (socket == null) {
+                        break;
+                    }
+                    doQuery(socket);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+
+        while (true) {
+            saveState();
+            try {
+                Thread.sleep(SAVING_STATE_PERIOD);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    private static void run(String[] args) {
-        if (args.length != ARGS_LENGTH_RUN) {
-            System.out.println("Wrong arguments");
-            printUsage();
-            return;
-        }
-
-        host = args[1];
-
-
-    }
-
-    private boolean sendUpdate() throws IOException {
+    private static boolean sendUpdate() throws IOException {
         Socket socket = new Socket(host, PORT);
         DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -208,8 +287,33 @@ public class Client {
         return result;
     }
 
-    private List<Integer> sendStat(String clientIp, int clientPort, int id) throws IOException {
-        Socket socket = new Socket(clientIp, clientPort);
+    private static List<ClientInfo> sendSources(int id) throws IOException {
+        Socket socket = new Socket(host, PORT);
+        DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+        DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+
+        outputStream.writeByte(SOURCES);
+        outputStream.writeInt(id);
+
+        List<ClientInfo> clients = new ArrayList<>();
+        int cnt = inputStream.readInt();
+        for (int i = 0; i < cnt; i++) {
+            ClientInfo client = new ClientInfo();
+            client.ip = new byte[4];
+            if (inputStream.read(client.ip) != 4) {
+                throw new IOException("Error in sources");
+            }
+            client.port = inputStream.readByte();
+
+            clients.add(client);
+        }
+
+        socket.close();
+        return clients;
+    }
+
+    private static List<Integer> sendStat(byte[] clientIp, int clientPort, int id) throws IOException {
+        Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
         DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
@@ -226,8 +330,8 @@ public class Client {
         return parts;
     }
 
-    private byte[] sendGet(String clientIp, int clientPort, int id, int part) throws IOException {
-        Socket socket = new Socket(clientIp, clientPort);
+    private static byte[] sendGet(byte[] clientIp, int clientPort, int id, int part) throws IOException {
+        Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
         DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
@@ -245,7 +349,28 @@ public class Client {
         return buffer;
     }
 
-    private void doStat(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private static void doQuery(Socket socket) {
+        try (DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
+            while (!socket.isClosed()) {
+                byte request = inputStream.readByte();
+                switch (request) {
+                    case STAT:
+                        doStat(inputStream, outputStream);
+                        break;
+                    case GET:
+                        doGet(inputStream, outputStream);
+                        break;
+                    default:
+                        System.err.println("Incorrect query");
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void doStat(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         FileInfo file = filesById.get(id);
         List<Integer> parts = new ArrayList<>();
@@ -260,7 +385,7 @@ public class Client {
         }
     }
 
-    private void doGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private static void doGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         int part = inputStream.readInt();
 
