@@ -51,19 +51,19 @@ public class Server {
 
     private void updateClientsOfFile(int id) {
         Set<ClientInfo> newClients = new HashSet<>();
-        for (ClientInfo clientInfo : filesById.get(id).clients) {
-            if (clientInfo.lastUpdateTime + UPDATE_TIME < System.currentTimeMillis()) {
+        for (ClientInfo clientInfo : filesById.get(id).getClients()) {
+            if (clientInfo.getLastUpdateTime() + UPDATE_TIME < System.currentTimeMillis()) {
                 removeClient(clientInfo);
             } else {
                 newClients.add(clientInfo);
             }
         }
-        filesById.get(id).clients = newClients;
+        filesById.get(id).setClients(newClients);
     }
 
     private void removeClient(ClientInfo clientInfo) {
         for (int id : clientFiles.get(clientInfo.getHash())) {
-            filesById.get(id).clients.remove(clientInfo);
+            filesById.get(id).getClients().remove(clientInfo);
         }
         clientFiles.remove(clientInfo.getHash());
     }
@@ -98,30 +98,30 @@ public class Server {
     private void doList(DataOutputStream outputStream) throws IOException {
         outputStream.writeInt(filesById.size());
         for (FileInfo file : filesById.values()) {
-            outputStream.writeInt(file.id);
-            outputStream.writeUTF(file.name);
-            outputStream.writeLong(file.size);
+            outputStream.writeInt(file.getId());
+            outputStream.writeUTF(file.getName());
+            outputStream.writeLong(file.getSize());
         }
     }
 
     private void doUpload(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         FileInfo fileInfo = new FileInfo();
-        fileInfo.id = newFileId++;
-        fileInfo.name = inputStream.readUTF();
-        fileInfo.size = inputStream.readLong();
-        filesById.put(fileInfo.id, fileInfo);
-        outputStream.writeInt(fileInfo.id);
+        fileInfo.setId(newFileId++);
+        fileInfo.setName(inputStream.readUTF());
+        fileInfo.setSize(inputStream.readLong());
+        filesById.put(fileInfo.getId(), fileInfo);
+        outputStream.writeInt(fileInfo.getId());
     }
 
     private void doSources(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         updateClientsOfFile(id);
 
-        outputStream.writeInt(filesById.get(id).clients.size());
+        outputStream.writeInt(filesById.get(id).getClients().size());
 
-        for (ClientInfo clientInfo : filesById.get(id).clients) {
-            outputStream.write(clientInfo.ip);
-            outputStream.writeShort(clientInfo.port);
+        for (ClientInfo clientInfo : filesById.get(id).getClients()) {
+            outputStream.write(clientInfo.getIp());
+            outputStream.writeShort(clientInfo.getPort());
         }
     }
 
@@ -129,9 +129,9 @@ public class Server {
             throws IOException {
         short port = inputStream.readByte();
         ClientInfo currentClient = new ClientInfo();
-        currentClient.ip = ip;
-        currentClient.port = port;
-        currentClient.lastUpdateTime = System.currentTimeMillis();
+        currentClient.setIp(ip);
+        currentClient.setPort(port);
+        currentClient.setLastUpdateTime(System.currentTimeMillis());
         if (clientFiles.containsKey(currentClient.getHash())) {
             removeClient(currentClient);
         }

@@ -52,7 +52,8 @@ public class Client {
                 }
                 Map<Integer, FileInfo> filesFromServer = list();
                 for (FileInfo file : filesFromServer.values()) {
-                    System.out.println("id: " + file.id + " name: " + file.name + " size: " + file.size);
+                    System.out.println("id: " + file.getId() + " name: " + file.getName() + " size: " +
+                            file.getSize());
                 }
                 break;
             case "get":
@@ -81,7 +82,6 @@ public class Client {
                 break;
         }
         saveState();
-
     }
 
     private void loadState() throws IOException {
@@ -92,20 +92,20 @@ public class Client {
             int cnt = in.readInt();
             for (int i = 0; i < cnt; i++) {
                 FileInfo file = new FileInfo();
-                file.id = in.readInt();
-                file.startedDownloading = in.readBoolean();
-                if (file.startedDownloading) {
-                    file.name = in.readUTF();
-                    file.size = in.readLong();
+                file.setId(in.readInt());
+                file.setStartedDownloading(in.readBoolean());
+                if (file.getStartedDownloading()) {
+                    file.setName(in.readUTF());
+                    file.setSize(in.readLong());
                     byte[] parts = new byte[file.getPartsCnt()];
                     if (in.read(parts) != file.getPartsCnt()) {
                         throw new IOException("Error while loading config");
                     }
                     for (int part = 0; part < file.getPartsCnt(); part++) {
-                        file.isDownloadedPart[part] = parts[part] != 0;
+                        file.setIsDownloadedPart(part, parts[part] != 0);
                     }
                 }
-                filesById.put(file.id, file);
+                filesById.put(file.getId(), file);
             }
 
             in.close();
@@ -124,13 +124,13 @@ public class Client {
 
         out.writeInt(filesById.size());
         for (FileInfo file : filesById.values()) {
-            out.writeInt(file.id);
-            out.writeBoolean(file.startedDownloading);
-            if (file.startedDownloading) {
-                out.writeUTF(file.name);
-                out.writeLong(file.size);
+            out.writeInt(file.getId());
+            out.writeBoolean(file.getStartedDownloading());
+            if (file.getStartedDownloading()) {
+                out.writeUTF(file.getName());
+                out.writeLong(file.getSize());
                 for (int i = 0; i < file.getPartsCnt(); i++) {
-                    out.write(file.isDownloadedPart[i] ? 1 : 0);
+                    out.write(file.getIsDownloadedPart(i) ? 1 : 0);
                 }
             }
         }
@@ -156,20 +156,20 @@ public class Client {
 
         for (int i = 0; i < cnt; i++) {
             FileInfo file = new FileInfo();
-            file.id = inputStream.readInt();
-            file.name = inputStream.readUTF();
-            file.size = inputStream.readLong();
+            file.setId(inputStream.readInt());
+            file.setName(inputStream.readUTF());
+            file.setSize(inputStream.readLong());
 
-            files.put(file.id, file);
+            files.put(file.getId(), file);
         }
         return files;
     }
 
     private void get(String id) {
         FileInfo file = new FileInfo();
-        file.id = Integer.parseInt(id);
-        file.startedDownloading = false;
-        filesById.put(file.id, file);
+        file.setId(Integer.parseInt(id));
+        file.setStartedDownloading(false);
+        filesById.put(file.getId(), file);
     }
 
     private void newfile(String path) throws IOException {
@@ -177,19 +177,19 @@ public class Client {
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
         FileInfo file = new FileInfo();
-        file.file = new RandomAccessFile(path, "r");
-        file.name = path;
-        file.size = file.file.length();
-        file.startedDownloading = true;
-        file.cntDownloadedParts = file.getPartsCnt();
+        file.setFile(new RandomAccessFile(path, "r"));
+        file.setName(path);
+        file.setSize(file.getFile().length());
+        file.setStartedDownloading(true);
+        file.setCntDownloadedParts(file.getPartsCnt());
 
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
         outputStream.writeByte(UPLOAD);
-        outputStream.writeUTF(file.name);
-        outputStream.writeLong(file.size);
+        outputStream.writeUTF(file.getName());
+        outputStream.writeLong(file.getSize());
 
-        file.id = inputStream.readInt();
-        filesById.put(file.id, file);
+        file.setId(inputStream.readInt());
+        filesById.put(file.getId(), file);
 
         socket.close();
     }
@@ -197,18 +197,18 @@ public class Client {
     private void run() throws IOException {
         Map<Integer, FileInfo> filesFromServer = list();
 
-        filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.id)
-                && !file.startedDownloading).forEach(file -> {
-            FileInfo fileFromServer = filesFromServer.get(file.id);
-            file.startedDownloading = true;
-            file.name = fileFromServer.name;
-            file.size = fileFromServer.size;
+        filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.getId())
+                && !file.getStartedDownloading()).forEach(file -> {
+            FileInfo fileFromServer = filesFromServer.get(file.getId());
+            file.setStartedDownloading(true);
+            file.setName(fileFromServer.getName());
+            file.setSize(fileFromServer.getSize());
             try {
-                file.file = new RandomAccessFile(file.name, "rw");
+                file.setFile(new RandomAccessFile(file.getName(), "rw"));
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
-            file.isDownloadedPart = new boolean[file.getPartsCnt()];
+            file.setIsDownloadedParts(new boolean[file.getPartsCnt()]);
         });
 
         //Thread to update
@@ -228,17 +228,18 @@ public class Client {
             while (true) {
                 try {
                     for (FileInfo file : filesById.values()) {
-                        if (file.startedDownloading && file.cntDownloadedParts != file.getPartsCnt()) {
-                            List<ClientInfo> clients = sendSources(file.id);
+                        if (file.getStartedDownloading() && file.getCntDownloadedParts() != file.getPartsCnt()) {
+                            List<ClientInfo> clients = sendSources(file.getId());
                             for (ClientInfo client : clients) {
-                                List<Integer> parts = sendStat(client.ip, client.port, file.id);
+                                List<Integer> parts = sendStat(client.getIp(), client.getPort(), file.getId());
                                 for (Integer part : parts) {
-                                    if (!file.isDownloadedPart[part]) {
-                                        file.isDownloadedPart[part] = true;
-                                        file.cntDownloadedParts++;
-                                        byte[] buffer = sendGet(client.ip, client.port, file.id, part);
-                                        file.file.seek(part * (long) PART_SIZE);
-                                        file.file.write(buffer);
+                                    if (!file.getIsDownloadedPart(part)) {
+                                        file.setIsDownloadedPart(part, true);
+                                        file.setCntDownloadedParts(file.getCntDownloadedParts() + 1);
+                                        byte[] buffer = sendGet(client.getIp(), client.getPort(),
+                                                file.getId(), part);
+                                        file.getFile().seek(part * (long) PART_SIZE);
+                                        file.getFile().write(buffer);
                                     }
                                 }
                             }
@@ -308,11 +309,11 @@ public class Client {
         int cnt = inputStream.readInt();
         for (int i = 0; i < cnt; i++) {
             ClientInfo client = new ClientInfo();
-            client.ip = new byte[IP_LENGTH];
-            if (inputStream.read(client.ip) != IP_LENGTH) {
+            client.setIp(new byte[IP_LENGTH]);
+            if (inputStream.read(client.getIp()) != IP_LENGTH) {
                 throw new IOException("Error in sources");
             }
-            client.port = inputStream.readByte();
+            client.setPort(inputStream.readByte());
 
             clients.add(client);
         }
@@ -384,7 +385,7 @@ public class Client {
         FileInfo file = filesById.get(id);
         List<Integer> parts = new ArrayList<>();
         for (int i = 0; i < file.getPartsCnt(); i++) {
-            if (file.isDownloadedPart[i]) {
+            if (file.getIsDownloadedPart(i)) {
                 parts.add(i);
             }
         }
@@ -401,8 +402,8 @@ public class Client {
         byte[] buffer = new byte[PART_SIZE];
 
         FileInfo file = filesById.get(id);
-        file.file.seek(part * (long) PART_SIZE);
-        file.file.read(buffer);
+        file.getFile().seek(part * (long) PART_SIZE);
+        file.getFile().read(buffer);
 
         outputStream.write(buffer);
     }
