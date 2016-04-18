@@ -32,10 +32,11 @@ public class Client {
     private static int port;
     private static Map<Integer, FileInfo> filesById;
 
-    private Client() {
+    public static void main(String[] args) throws IOException {
+        new Client().start(args);
     }
 
-    public static void main(String[] args) throws IOException {
+    public void start(String[] args) throws IOException {
         loadState();
 
         if (args.length < MIN_ARGS_CNT) {
@@ -80,9 +81,10 @@ public class Client {
                 break;
         }
         saveState();
+
     }
 
-    private static void loadState() throws IOException {
+    private void loadState() throws IOException {
         File config = new File(CONFIG_FILE);
         if (config.exists()) {
             final DataInputStream in = new DataInputStream(new FileInputStream(config));
@@ -117,7 +119,7 @@ public class Client {
         }
     }
 
-    private static void saveState() throws IOException {
+    private void saveState() throws IOException {
         final DataOutputStream out = new DataOutputStream(new FileOutputStream(CONFIG_FILE));
 
         out.writeInt(filesById.size());
@@ -135,7 +137,7 @@ public class Client {
         out.close();
     }
 
-    private static void printUsage() {
+    private void printUsage() {
         System.out.println("Usage:");
         System.out.println("list <tracker-address>");
         System.out.println("get <tracker-address> <file-id>");
@@ -143,7 +145,7 @@ public class Client {
         System.out.println("run <tracker-address>");
     }
 
-    private static Map<Integer, FileInfo> list() throws IOException {
+    private Map<Integer, FileInfo> list() throws IOException {
         Socket socket = new Socket(host, PORT);
         socket.getOutputStream().write(LIST);
 
@@ -163,14 +165,14 @@ public class Client {
         return files;
     }
 
-    private static void get(String id) {
+    private void get(String id) {
         FileInfo file = new FileInfo();
         file.id = Integer.parseInt(id);
         file.startedDownloading = false;
         filesById.put(file.id, file);
     }
 
-    private static void newfile(String path) throws IOException {
+    private void newfile(String path) throws IOException {
         Socket socket = new Socket(host, PORT);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
@@ -192,7 +194,7 @@ public class Client {
         socket.close();
     }
 
-    private static void run() throws IOException {
+    private void run() throws IOException {
         Map<Integer, FileInfo> filesFromServer = list();
 
         filesById.values().stream().filter(file -> filesFromServer.keySet().contains(file.id)
@@ -276,7 +278,7 @@ public class Client {
         }
     }
 
-    private static boolean sendUpdate() throws IOException {
+    private boolean sendUpdate() throws IOException {
         Socket socket = new Socket(host, PORT);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -294,7 +296,7 @@ public class Client {
         return result;
     }
 
-    private static List<ClientInfo> sendSources(int id) throws IOException {
+    private List<ClientInfo> sendSources(int id) throws IOException {
         Socket socket = new Socket(host, PORT);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -319,7 +321,7 @@ public class Client {
         return clients;
     }
 
-    private static List<Integer> sendStat(byte[] clientIp, int clientPort, int id) throws IOException {
+    private List<Integer> sendStat(byte[] clientIp, int clientPort, int id) throws IOException {
         Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -337,7 +339,7 @@ public class Client {
         return parts;
     }
 
-    private static byte[] sendGet(byte[] clientIp, int clientPort, int id, int part) throws IOException {
+    private byte[] sendGet(byte[] clientIp, int clientPort, int id, int part) throws IOException {
         Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -356,7 +358,7 @@ public class Client {
         return buffer;
     }
 
-    private static void doQuery(Socket socket) {
+    private void doQuery(Socket socket) {
         try (DataInputStream inputStream = new DataInputStream(socket.getInputStream());
              DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
             while (!socket.isClosed()) {
@@ -377,7 +379,7 @@ public class Client {
         }
     }
 
-    private static void doStat(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private void doStat(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         FileInfo file = filesById.get(id);
         List<Integer> parts = new ArrayList<>();
@@ -392,7 +394,7 @@ public class Client {
         }
     }
 
-    private static void doGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private void doGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         int part = inputStream.readInt();
 

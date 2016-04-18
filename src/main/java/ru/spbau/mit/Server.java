@@ -20,13 +20,13 @@ public class Server {
     Map<Integer, FileInfo> filesById;
     Map<Integer, List<Integer>> clientFiles;
 
-    public static void main(String[] args) throws IOException {
-        new Server().start();
-    }
-
     public Server() {
         filesById = new HashMap<>();
         clientFiles = new HashMap<>();
+    }
+
+    public static void main(String[] args) throws IOException {
+        new Server().start();
     }
 
     public void start() throws IOException {
