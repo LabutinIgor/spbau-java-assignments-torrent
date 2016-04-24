@@ -31,7 +31,14 @@ public class ClientInfo {
         this.lastUpdateTime = lastUpdateTime;
     }
 
-    public Integer getHash() {
-        return Arrays.hashCode(ip) + port;
+    @Override
+    public boolean equals(Object object) {
+        return object != null && object.getClass() == getClass()
+                && ((ClientInfo) object).port == port && Arrays.equals(((ClientInfo) object).ip, ip);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(ip) * 31 + port;
     }
 }

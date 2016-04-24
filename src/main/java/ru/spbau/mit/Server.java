@@ -7,7 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
-public class Server {
+public class Server implements AutoCloseable {
     private static final int PORT = 8081;
     private static final long UPDATE_TIME = 60000;
     private static final byte LIST = 1;
@@ -18,7 +18,7 @@ public class Server {
     private int newFileId = 0;
     private ServerSocket serverSocket;
     private Map<Integer, FileInfo> filesById;
-    private Map<Integer, List<Integer>> clientFiles;
+    private Map<ClientInfo, List<Integer>> clientFiles;
 
     public Server() {
         filesById = new HashMap<>();
@@ -31,17 +31,23 @@ public class Server {
 
     public void start() throws IOException {
         serverSocket = new ServerSocket(PORT);
-        new Thread(this::handleConnection).start();
+        new Thread(this::handleConnections).start();
     }
 
-    private void handleConnection() {
+    @Override
+    public void close() throws IOException {
+        serverSocket.close();
+    }
+
+    private void handleConnections() {
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
                 if (socket == null) {
                     break;
                 }
-                doQuery(socket);
+                processQuery(socket);
+                socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
                 break;
@@ -51,51 +57,49 @@ public class Server {
 
     private void updateClientsOfFile(int id) {
         Set<ClientInfo> newClients = new HashSet<>();
-        for (ClientInfo clientInfo : filesById.get(id).getClients()) {
+        for (ClientInfo clientInfo : filesById.get(id).getSeeds()) {
             if (clientInfo.getLastUpdateTime() + UPDATE_TIME < System.currentTimeMillis()) {
                 removeClient(clientInfo);
             } else {
                 newClients.add(clientInfo);
             }
         }
-        filesById.get(id).setClients(newClients);
+        filesById.get(id).setSeeds(newClients);
     }
 
     private void removeClient(ClientInfo clientInfo) {
-        for (int id : clientFiles.get(clientInfo.getHash())) {
-            filesById.get(id).getClients().remove(clientInfo);
+        for (int id : clientFiles.get(clientInfo)) {
+            filesById.get(id).getSeeds().remove(clientInfo);
         }
-        clientFiles.remove(clientInfo.getHash());
+        clientFiles.remove(clientInfo);
     }
 
-    private void doQuery(Socket socket) {
+    private void processQuery(Socket socket) {
         try (DataInputStream inputStream = new DataInputStream(socket.getInputStream());
              DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
-            while (!socket.isClosed()) {
-                byte request = inputStream.readByte();
-                switch (request) {
-                    case LIST:
-                        doList(outputStream);
-                        break;
-                    case UPLOAD:
-                        doUpload(inputStream, outputStream);
-                        break;
-                    case SOURCES:
-                        doSources(inputStream, outputStream);
-                        break;
-                    case UPDATE:
-                        doUpdate(inputStream, outputStream, socket.getInetAddress().getAddress());
-                        break;
-                    default:
-                        System.err.println("Incorrect query");
-                }
+            byte request = inputStream.readByte();
+            switch (request) {
+                case LIST:
+                    processListQuery(outputStream);
+                    break;
+                case UPLOAD:
+                    processUploadQuery(inputStream, outputStream);
+                    break;
+                case SOURCES:
+                    processSourcesQuery(inputStream, outputStream);
+                    break;
+                case UPDATE:
+                    processUpdateQuery(inputStream, outputStream, socket.getInetAddress().getAddress());
+                    break;
+                default:
+                    System.err.println("Incorrect query");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void doList(DataOutputStream outputStream) throws IOException {
+    private void processListQuery(DataOutputStream outputStream) throws IOException {
         outputStream.writeInt(filesById.size());
         for (FileInfo file : filesById.values()) {
             outputStream.writeInt(file.getId());
@@ -104,7 +108,8 @@ public class Server {
         }
     }
 
-    private void doUpload(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private void processUploadQuery(DataInputStream inputStream, DataOutputStream outputStream)
+            throws IOException {
         FileInfo fileInfo = new FileInfo();
         fileInfo.setId(newFileId++);
         fileInfo.setName(inputStream.readUTF());
@@ -113,26 +118,27 @@ public class Server {
         outputStream.writeInt(fileInfo.getId());
     }
 
-    private void doSources(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
+    private void processSourcesQuery(DataInputStream inputStream, DataOutputStream outputStream)
+            throws IOException {
         int id = inputStream.readInt();
         updateClientsOfFile(id);
 
-        outputStream.writeInt(filesById.get(id).getClients().size());
+        outputStream.writeInt(filesById.get(id).getSeeds().size());
 
-        for (ClientInfo clientInfo : filesById.get(id).getClients()) {
+        for (ClientInfo clientInfo : filesById.get(id).getSeeds()) {
             outputStream.write(clientInfo.getIp());
             outputStream.writeShort(clientInfo.getPort());
         }
     }
 
-    private void doUpdate(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip)
+    private void processUpdateQuery(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip)
             throws IOException {
         short port = inputStream.readByte();
         ClientInfo currentClient = new ClientInfo();
         currentClient.setIp(ip);
         currentClient.setPort(port);
         currentClient.setLastUpdateTime(System.currentTimeMillis());
-        if (clientFiles.containsKey(currentClient.getHash())) {
+        if (clientFiles.containsKey(currentClient)) {
             removeClient(currentClient);
         }
 
@@ -141,7 +147,7 @@ public class Server {
         for (int i = 0; i < cntFiles; i++) {
             files.add(inputStream.readInt());
         }
-        clientFiles.put(currentClient.getHash(), files);
+        clientFiles.put(currentClient, files);
 
         outputStream.writeBoolean(true);
     }

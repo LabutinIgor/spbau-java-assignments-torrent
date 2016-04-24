@@ -9,9 +9,8 @@ public class FileInfo {
     private int id;
     private String name;
     private long size;
-    private Set<ClientInfo> clients;
+    private Set<ClientInfo> seeds;
     private RandomAccessFile file;
-    private boolean startedDownloading;
     private int cntDownloadedParts;
     private boolean[] isDownloadedPart;
 
@@ -27,16 +26,12 @@ public class FileInfo {
         return size;
     }
 
-    public Set<ClientInfo> getClients() {
-        return clients;
+    public Set<ClientInfo> getSeeds() {
+        return seeds;
     }
 
     public RandomAccessFile getFile() {
         return file;
-    }
-
-    public boolean getStartedDownloading() {
-        return startedDownloading;
     }
 
     public int getCntDownloadedParts() {
@@ -59,16 +54,12 @@ public class FileInfo {
         this.size = size;
     }
 
-    public void setClients(Set<ClientInfo> clients) {
-        this.clients = clients;
+    public void setSeeds(Set<ClientInfo> clients) {
+        this.seeds = clients;
     }
 
     public void setFile(RandomAccessFile file) {
         this.file = file;
-    }
-
-    public void setStartedDownloading(boolean startedDownloading) {
-        this.startedDownloading = startedDownloading;
     }
 
     public void setCntDownloadedParts(int cntDownloadedParts) {
