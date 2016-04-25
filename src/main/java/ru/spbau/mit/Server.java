@@ -49,7 +49,7 @@ public class Server implements AutoCloseable {
                 processQuery(socket);
                 socket.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("Error in handling connection in server");
                 break;
             }
         }
@@ -92,10 +92,10 @@ public class Server implements AutoCloseable {
                     processUpdateQuery(inputStream, outputStream, socket.getInetAddress().getAddress());
                     break;
                 default:
-                    System.err.println("Incorrect query");
+                    System.err.println("Incorrect query to server: " + request);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error in processing query in server");
         }
     }
 
@@ -110,11 +110,11 @@ public class Server implements AutoCloseable {
 
     private void processUploadQuery(DataInputStream inputStream, DataOutputStream outputStream)
             throws IOException {
-        FileInfo fileInfo = new FileInfo();
-        fileInfo.setId(newFileId++);
-        fileInfo.setName(inputStream.readUTF());
-        fileInfo.setSize(inputStream.readLong());
-        filesById.put(fileInfo.getId(), fileInfo);
+        int id = newFileId++;
+        String name = inputStream.readUTF();
+        long size = inputStream.readLong();
+        FileInfo fileInfo = new FileInfo(id, name, size);
+        filesById.put(id, fileInfo);
         outputStream.writeInt(fileInfo.getId());
     }
 
@@ -134,9 +134,7 @@ public class Server implements AutoCloseable {
     private void processUpdateQuery(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip)
             throws IOException {
         short port = inputStream.readByte();
-        ClientInfo currentClient = new ClientInfo();
-        currentClient.setIp(ip);
-        currentClient.setPort(port);
+        ClientInfo currentClient = new ClientInfo(ip, port);
         currentClient.setLastUpdateTime(System.currentTimeMillis());
         if (clientFiles.containsKey(currentClient)) {
             removeClient(currentClient);

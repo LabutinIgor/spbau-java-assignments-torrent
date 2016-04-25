@@ -6,13 +6,19 @@ import java.util.Set;
 public class FileInfo {
     private static final int PART_SIZE = 4096;
 
-    private int id;
-    private String name;
-    private long size;
+    private final int id;
+    private final String name;
+    private final long size;
     private Set<ClientInfo> seeds;
     private RandomAccessFile file;
     private int cntDownloadedParts;
     private boolean[] isDownloadedPart;
+
+    public FileInfo(int id, String name, long size) {
+        this.id = id;
+        this.name = name;
+        this.size = size;
+    }
 
     public int getId() {
         return id;
@@ -40,18 +46,6 @@ public class FileInfo {
 
     public boolean getIsDownloadedPart(int part) {
         return isDownloadedPart[part];
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setSize(long size) {
-        this.size = size;
     }
 
     public void setSeeds(Set<ClientInfo> clients) {
