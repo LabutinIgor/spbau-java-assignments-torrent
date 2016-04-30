@@ -172,7 +172,7 @@ public class Client {
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
         RandomAccessFile uploadingFile = new RandomAccessFile(path, "r");
-        long size = uploadingFile.length();
+        final long size = uploadingFile.length();
         uploadingFile.close();
 
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
@@ -228,7 +228,7 @@ public class Client {
             while (true) {
                 for (FileInfo file : filesById.values()) {
                     if (file != null && file.getCntDownloadedParts() != file.getPartsCnt()) {
-                        System.err.println("Download " + file.getName());
+                        //System.err.println("Download " + file.getName());
                         downloadFile(file);
                     }
                 }
@@ -344,7 +344,7 @@ public class Client {
         return parts;
     }
 
-    private byte[] sendGetQuery(byte[] clientIp, int clientPort, int id, int part, int part_size)
+    private byte[] sendGetQuery(byte[] clientIp, int clientPort, int id, int part, int partSize)
             throws IOException {
         Socket socket = new Socket(InetAddress.getByAddress(clientIp), clientPort);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
@@ -354,9 +354,9 @@ public class Client {
         outputStream.writeInt(id);
         outputStream.writeInt(part);
 
-        byte[] buffer = new byte[part_size];
+        byte[] buffer = new byte[partSize];
 
-        if (inputStream.read(buffer) != part_size) {
+        if (inputStream.read(buffer) != partSize) {
             throw new IOException("Error in get query");
         }
 

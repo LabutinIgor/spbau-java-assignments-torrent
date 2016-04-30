@@ -42,7 +42,6 @@ public class Tests {
         client1.start();
 
         new Client("config2.txt").start(argsGet);
-        System.err.println("RUN!!!");
         new Client("config2.txt").start(argsRun);
     }
 }

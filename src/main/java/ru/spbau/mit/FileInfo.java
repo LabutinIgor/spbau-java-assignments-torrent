@@ -1,6 +1,5 @@
 package ru.spbau.mit;
 
-import java.io.RandomAccessFile;
 import java.util.Set;
 
 public class FileInfo {
