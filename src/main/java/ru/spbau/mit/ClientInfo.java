@@ -4,10 +4,10 @@ import java.util.Arrays;
 
 public class ClientInfo {
     private final byte[] ip;
-    private final short port;
+    private final int port;
     private long lastUpdateTime;
 
-    public ClientInfo(byte[] ip, short port) {
+    public ClientInfo(byte[] ip, int port) {
         this.ip = ip;
         this.port = port;
     }
@@ -16,7 +16,7 @@ public class ClientInfo {
         return ip;
     }
 
-    public short getPort() {
+    public int getPort() {
         return port;
     }
 

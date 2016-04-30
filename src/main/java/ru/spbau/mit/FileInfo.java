@@ -8,15 +8,22 @@ public class FileInfo {
 
     private final int id;
     private final String name;
+    private String path;
     private final long size;
     private Set<ClientInfo> seeds;
-    private RandomAccessFile file;
     private int cntDownloadedParts;
     private boolean[] isDownloadedPart;
 
     public FileInfo(int id, String name, long size) {
         this.id = id;
         this.name = name;
+        this.size = size;
+    }
+
+    public FileInfo(int id, String name, String path, long size) {
+        this.id = id;
+        this.name = name;
+        this.path = path;
         this.size = size;
     }
 
@@ -28,16 +35,16 @@ public class FileInfo {
         return name;
     }
 
+    public String getPath() {
+        return path;
+    }
+
     public long getSize() {
         return size;
     }
 
     public Set<ClientInfo> getSeeds() {
         return seeds;
-    }
-
-    public RandomAccessFile getFile() {
-        return file;
     }
 
     public int getCntDownloadedParts() {
@@ -50,10 +57,6 @@ public class FileInfo {
 
     public void setSeeds(Set<ClientInfo> clients) {
         this.seeds = clients;
-    }
-
-    public void setFile(RandomAccessFile file) {
-        this.file = file;
     }
 
     public void setCntDownloadedParts(int cntDownloadedParts) {
@@ -69,6 +72,10 @@ public class FileInfo {
     }
 
     public int getPartsCnt() {
-        return (int) (size / PART_SIZE);
+        return (int) (size / PART_SIZE + (size % PART_SIZE == 0 ? 0 : 1));
+    }
+
+    public int getPartSize(int part) {
+        return part == getPartsCnt() - 1 ? (int) (size % PART_SIZE) : PART_SIZE;
     }
 }

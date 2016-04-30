@@ -114,6 +114,7 @@ public class Server implements AutoCloseable {
         String name = inputStream.readUTF();
         long size = inputStream.readLong();
         FileInfo fileInfo = new FileInfo(id, name, size);
+        fileInfo.setSeeds(new HashSet<>());
         filesById.put(id, fileInfo);
         outputStream.writeInt(fileInfo.getId());
     }
@@ -122,19 +123,21 @@ public class Server implements AutoCloseable {
             throws IOException {
         int id = inputStream.readInt();
         updateClientsOfFile(id);
+        //System.err.println("Sources in server to file " + id);
 
         outputStream.writeInt(filesById.get(id).getSeeds().size());
 
         for (ClientInfo clientInfo : filesById.get(id).getSeeds()) {
             outputStream.write(clientInfo.getIp());
-            outputStream.writeShort(clientInfo.getPort());
+            outputStream.writeInt(clientInfo.getPort());
         }
     }
 
     private void processUpdateQuery(DataInputStream inputStream, DataOutputStream outputStream, byte[] ip)
             throws IOException {
-        short port = inputStream.readByte();
+        int port = inputStream.readInt();
         ClientInfo currentClient = new ClientInfo(ip, port);
+        //System.err.println("Update client " + Arrays.toString(ip) + " " + port);
         currentClient.setLastUpdateTime(System.currentTimeMillis());
         if (clientFiles.containsKey(currentClient)) {
             removeClient(currentClient);
@@ -146,6 +149,9 @@ public class Server implements AutoCloseable {
             files.add(inputStream.readInt());
         }
         clientFiles.put(currentClient, files);
+        for (Integer fileId : files) {
+            filesById.get(fileId).getSeeds().add(currentClient);
+        }
 
         outputStream.writeBoolean(true);
     }

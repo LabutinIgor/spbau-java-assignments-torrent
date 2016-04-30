@@ -18,7 +18,7 @@ public class Tests {
         server.start();
 
         String[] argsNewFile = {"newfile", "localhost", "a.txt"};
-        new Client().start(argsNewFile);
+        new Client("config1.txt").start(argsNewFile);
 
         try {
             Thread.sleep(1000);
@@ -27,6 +27,22 @@ public class Tests {
         }
 
         String[] argsList = {"list", "localhost"};
-        new Client().start(argsList);
+        String[] argsRun = {"run", "localhost"};
+        String[] argsGet = {"get", "localhost", "0"};
+
+        new Client("config1.txt").start(argsList);
+
+        Thread client1 = new Thread(() -> {
+            try {
+                new Client("config1.txt").start(argsRun);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        client1.start();
+
+        new Client("config2.txt").start(argsGet);
+        System.err.println("RUN!!!");
+        new Client("config2.txt").start(argsRun);
     }
 }
