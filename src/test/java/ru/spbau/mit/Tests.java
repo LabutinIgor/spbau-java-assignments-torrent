@@ -17,6 +17,12 @@ public class Tests {
         });
         server.start();
 
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         final String[] argsNewFile = {"newfile", "localhost", "src/test/resources/a.txt"};
         final String[] argsList = {"list", "localhost"};
         final String[] argsRun = {"run", "localhost"};
