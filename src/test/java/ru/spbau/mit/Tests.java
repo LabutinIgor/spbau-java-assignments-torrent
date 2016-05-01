@@ -17,10 +17,10 @@ public class Tests {
         });
         server.start();
 
-        String[] argsNewFile = {"newfile", "localhost", "src/test/resources/a.txt"};
-        String[] argsList = {"list", "localhost"};
-        String[] argsRun = {"run", "localhost"};
-        String[] argsGet = {"get", "localhost", "0"};
+        final String[] argsNewFile = {"newfile", "localhost", "src/test/resources/a.txt"};
+        final String[] argsList = {"list", "localhost"};
+        final String[] argsRun = {"run", "localhost"};
+        final String[] argsGet = {"get", "localhost", "0"};
 
         new TorrentClientMain("config1.txt").start(argsNewFile);
         new TorrentClientMain("config1.txt").start(argsList);
