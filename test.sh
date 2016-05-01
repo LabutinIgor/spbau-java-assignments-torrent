@@ -1,6 +1,6 @@
 #!/bin/sh
 
-REFERENCE_FILE=/Users/igorl/Downloads/a.txt
+REFERENCE_FILE=/Users/igorl/Downloads/ideaIC-2016.1.1.dmg
 
 PROJ=$PWD
 TMP=/tmp/torrent
@@ -45,7 +45,7 @@ $CLIENT get 127.0.0.1 0
 $CLIENT run 127.0.0.1 &
 PID3=$!
 
-sleep 20
+sleep 10
 
 FILE_SUFFIX=downloads/`basename $REFERENCE_FILE`
 

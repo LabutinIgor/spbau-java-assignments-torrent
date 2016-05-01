@@ -15,7 +15,7 @@ public class TorrentClientMain {
     private static final byte UPDATE = 4;
     private static final byte STAT = 1;
     private static final byte GET = 2;
-    private static final int PART_SIZE = 4096;
+    private static final int PART_SIZE = 1024 * 1024;
 
     private String host;
     private int port;
@@ -353,9 +353,7 @@ public class TorrentClientMain {
 
         byte[] buffer = new byte[partSize];
 
-        if (inputStream.read(buffer) != partSize) {
-            throw new IOException("Error in get query");
-        }
+        inputStream.readFully(buffer);
 
         socket.close();
         return buffer;

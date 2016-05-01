@@ -3,7 +3,7 @@ package ru.spbau.mit;
 import java.util.Set;
 
 public class FileInfo {
-    private static final int PART_SIZE = 4096;
+    private static final int PART_SIZE = 1024 * 1024;
 
     private final int id;
     private final String name;
