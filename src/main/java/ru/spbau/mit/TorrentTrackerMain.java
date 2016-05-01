@@ -7,7 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
-public class Server implements AutoCloseable {
+public class TorrentTrackerMain implements AutoCloseable {
     private static final int PORT = 8081;
     private static final long UPDATE_TIME = 60000;
     private static final byte LIST = 1;
@@ -20,13 +20,13 @@ public class Server implements AutoCloseable {
     private Map<Integer, FileInfo> filesById;
     private Map<ClientInfo, List<Integer>> clientFiles;
 
-    public Server() {
+    public TorrentTrackerMain() {
         filesById = new HashMap<>();
         clientFiles = new HashMap<>();
     }
 
     public static void main(String[] args) throws IOException {
-        new Server().start();
+        new TorrentTrackerMain().start();
     }
 
     public void start() throws IOException {
@@ -123,7 +123,6 @@ public class Server implements AutoCloseable {
             throws IOException {
         int id = inputStream.readInt();
         updateClientsOfFile(id);
-        //System.err.println("Sources in server to file " + id);
 
         outputStream.writeInt(filesById.get(id).getSeeds().size());
 
@@ -137,7 +136,6 @@ public class Server implements AutoCloseable {
             throws IOException {
         int port = inputStream.readInt();
         ClientInfo currentClient = new ClientInfo(ip, port);
-        //System.err.println("Update client " + Arrays.toString(ip) + " " + port);
         currentClient.setLastUpdateTime(System.currentTimeMillis());
         if (clientFiles.containsKey(currentClient)) {
             removeClient(currentClient);

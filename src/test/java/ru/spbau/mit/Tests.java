@@ -10,38 +10,44 @@ public class Tests {
     public void testUpload() throws IOException {
         Thread server = new Thread(() -> {
             try {
-                new Server().start();
+                new TorrentTrackerMain().start();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
         server.start();
 
-        String[] argsNewFile = {"newfile", "localhost", "a.txt"};
-        new Client("config1.txt").start(argsNewFile);
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        String[] argsNewFile = {"newfile", "localhost", "src/test/resources/a.txt"};
         String[] argsList = {"list", "localhost"};
         String[] argsRun = {"run", "localhost"};
         String[] argsGet = {"get", "localhost", "0"};
 
-        new Client("config1.txt").start(argsList);
+        new TorrentClientMain("config1.txt").start(argsNewFile);
+        new TorrentClientMain("config1.txt").start(argsList);
 
         Thread client1 = new Thread(() -> {
             try {
-                new Client("config1.txt").start(argsRun);
+                new TorrentClientMain("config1.txt").start(argsRun);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
         client1.start();
 
-        new Client("config2.txt").start(argsGet);
-        new Client("config2.txt").start(argsRun);
+        Thread client2 = new Thread(() -> {
+            try {
+                new TorrentClientMain("config2.txt").start(argsGet);
+                new TorrentClientMain("config2.txt").start(argsRun);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        client2.start();
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

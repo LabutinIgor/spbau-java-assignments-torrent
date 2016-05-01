@@ -6,7 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
-public class Client {
+public class TorrentClientMain {
     private static final int PORT = 8081;
     private static final long UPDATE_TIME = 60000;
     private static final byte LIST = 1;
@@ -22,12 +22,12 @@ public class Client {
     private Map<Integer, FileInfo> filesById;
     private String configFile;
 
-    public Client(String configFile) {
+    public TorrentClientMain(String configFile) {
         this.configFile = configFile;
     }
 
     public static void main(String[] args) throws IOException {
-        new Client("config.txt").start(args);
+        new TorrentClientMain("config.txt").start(args);
     }
 
     public void start(String[] args) throws IOException {
@@ -171,17 +171,19 @@ public class Client {
         Socket socket = new Socket(host, PORT);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
+        String[] pathParts = path.split("/");
+        final String name = pathParts[pathParts.length - 1];
         RandomAccessFile uploadingFile = new RandomAccessFile(path, "r");
         final long size = uploadingFile.length();
         uploadingFile.close();
 
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
         outputStream.writeByte(UPLOAD);
-        outputStream.writeUTF(path);
+        outputStream.writeUTF(name);
         outputStream.writeLong(size);
 
         int id = inputStream.readInt();
-        FileInfo file = new FileInfo(id, path, path, size);
+        FileInfo file = new FileInfo(id, name, path, size);
 
         file.setIsDownloadedParts(new boolean[file.getPartsCnt()]);
         for (int i = 0; i < file.getPartsCnt(); i++) {
@@ -197,7 +199,6 @@ public class Client {
     private void run() throws IOException {
         ServerSocket serverSocket = new ServerSocket(0);
         port = serverSocket.getLocalPort();
-        //System.err.println("new port: " + port);
 
         Map<Integer, FileInfo> filesFromServer = sendListQuery();
 
@@ -216,19 +217,21 @@ public class Client {
         TimerTask updateTask = new TimerTask() {
             @Override
             public void run() {
-                //System.err.println("UPDATE");
                 sendUpdateQuery();
             }
         };
         Timer timerToUpdate = new Timer();
         timerToUpdate.schedule(updateTask, 0, UPDATE_TIME);
 
+        File downloadsPath = new File("downloads");
+        downloadsPath.mkdir();
+
         //Thread to download
         new Thread(() -> {
             while (true) {
                 for (FileInfo file : filesById.values()) {
                     if (file != null && file.getCntDownloadedParts() != file.getPartsCnt()) {
-                        //System.err.println("Download " + file.getName());
+                        System.err.println("Download " + file.getName());
                         downloadFile(file);
                     }
                 }
@@ -251,10 +254,8 @@ public class Client {
             for (ClientInfo client : clients) {
                 List<Integer> parts = sendStatQuery(client.getIp(), client.getPort(),
                         file.getId());
-                //System.err.println("Get parts from client with port " + client.getPort());
                 for (Integer part : parts) {
                     if (!file.getIsDownloadedPart(part)) {
-                        //System.err.println("Download part " + part);
                         file.setIsDownloadedPart(part, true);
                         file.setCntDownloadedParts(file.getCntDownloadedParts() + 1);
                         byte[] buffer = sendGetQuery(client.getIp(), client.getPort(),
@@ -267,7 +268,7 @@ public class Client {
                     }
                 }
             }
-            //System.err.println("File " + file.getName() + " downloaded!");
+            System.err.println("File " + file.getName() + " downloaded!");
         } catch (IOException e) {
             System.err.println("Error in downloading file " + file.getName());
             e.printStackTrace();
@@ -279,8 +280,6 @@ public class Client {
             Socket socket = new Socket(host, PORT);
             final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
             final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-
-            //System.err.println("Send update from " + port);
 
             outputStream.writeByte(UPDATE);
             outputStream.writeInt(port);
@@ -301,7 +300,6 @@ public class Client {
 
     private List<ClientInfo> sendSourcesQuery(int id) throws IOException {
         Socket socket = new Socket(host, PORT);
-        //System.err.println("Send sources to file " + id);
         final DataInputStream inputStream = new DataInputStream(socket.getInputStream());
         final DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
 
@@ -320,7 +318,6 @@ public class Client {
 
             clients.add(client);
         }
-        //System.err.println("Sources result cnt: " + cnt);
 
         socket.close();
         return clients;
