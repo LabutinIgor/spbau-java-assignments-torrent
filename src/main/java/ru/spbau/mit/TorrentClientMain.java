@@ -21,6 +21,7 @@ public class TorrentClientMain {
     private int port;
     private Map<Integer, FileInfo> filesById;
     private String configFile;
+    private boolean stopped = false;
 
     public TorrentClientMain(String configFile) {
         this.configFile = configFile;
@@ -73,6 +74,10 @@ public class TorrentClientMain {
         saveState();
     }
 
+    public void stop() {
+        stopped = true;
+    }
+
     private void loadState() throws IOException {
         File config = new File(configFile);
         filesById = new HashMap<>();
@@ -92,9 +97,7 @@ public class TorrentClientMain {
 
                     byte[] parts = new byte[file.getPartsCnt()];
                     file.setIsDownloadedParts(new boolean[file.getPartsCnt()]);
-                    if (in.read(parts) != file.getPartsCnt()) {
-                        throw new IOException("Error while loading config");
-                    }
+                    in.readFully(parts);
                     for (int part = 0; part < file.getPartsCnt(); part++) {
                         file.setIsDownloadedPart(part, parts[part] != 0);
                     }
@@ -142,7 +145,7 @@ public class TorrentClientMain {
         System.exit(0);
     }
 
-    private Map<Integer, FileInfo> sendListQuery() throws IOException {
+    public Map<Integer, FileInfo> sendListQuery() throws IOException {
         Socket socket = new Socket(host, PORT);
         socket.getOutputStream().write(LIST);
 
@@ -238,7 +241,7 @@ public class TorrentClientMain {
             }
         }).start();
 
-        while (true) {
+        while (!stopped) {
             Socket socket = serverSocket.accept();
             if (socket == null) {
                 break;
@@ -246,6 +249,24 @@ public class TorrentClientMain {
             processQuery(socket);
             socket.close();
         }
+    }
+
+    public List<FileInfo> getFiles() {
+        try {
+            loadState();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        List<FileInfo> files = new ArrayList<>();
+        if (filesById != null) {
+            for (Map.Entry<Integer, FileInfo> entry : filesById.entrySet()) {
+                FileInfo file = entry.getValue();
+                if (file != null) {
+                    files.add(file);
+                }
+            }
+        }
+        return files;
     }
 
     private void downloadFile(FileInfo file) {
